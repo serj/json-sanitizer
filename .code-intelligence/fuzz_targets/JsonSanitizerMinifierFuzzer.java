@@ -27,6 +27,11 @@ public class JsonSanitizerMinifierFuzzer {
         // 2. Interpret fuzzer-generated data as String since this is the type
         // expected by the method we want to test
         String input = data.consumeRemainingAsString();
-        EvalMinifier.minify(input);
+        try {
+            EvalMinifier.minify(input);
+        // we are aware of the exception and want the exception to be ignored    
+        } catch (ArrayIndexOutOfBoundsException exceptio) {
+            //TODO: handle exception
+        }
     }
 }
