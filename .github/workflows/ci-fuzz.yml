@@ -7,9 +7,10 @@ on:
     branches: [ master ]
 
 env:
-  PROJECT_NAME: json-sanitizer
-  FUZZING_SERVER_ADDRESS: grpc-api.code-intelligence.com:443
-  DASHBOARD_ADDRESS: https://app.code-intelligence.com 
+  FUZZING_SERVER_ADDRESS: app.code-intelligence.com:6773
+  WEB_APP_ADDRESS:  https://app.code-intelligence.com
+  PROJECT_ID: projects/organizations_89d295318b3fded6_json-sanitizer-7eff5208
+
 
 jobs:
   fuzz_JsonSanitizerFuzzer:
@@ -20,8 +21,7 @@ jobs:
         uses: CodeIntelligenceTesting/github-actions/start-fuzzing@master
         with:
           ci_fuzz_api_token: ${{ secrets.CI_FUZZ_API_TOKEN }}
-          project: ${{ env.PROJECT_NAME }}
-          test_collection: "JsonSanitizerFuzzer"
+          project: ${{ env.PROJECT_ID }}
           git_reference: ${{ github.sha }}
           fuzzing_server_address: ${{ env.FUZZING_SERVER_ADDRESS }}          
       - id: monitor-fuzzing
@@ -29,27 +29,25 @@ jobs:
         uses: CodeIntelligenceTesting/github-actions/monitor-fuzzing@master
         with:
           ci_fuzz_api_token: ${{ secrets.CI_FUZZ_API_TOKEN }}
-          project: ${{ env.PROJECT_NAME }}
-          test_collection_run: ${{ steps.start-fuzzing.outputs.test_collection_run_display_name }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          pull_request_number: ${{ github.event.pull_request.number }}
-          owner: ${{ github.event.repository.owner.login }}
-          repository: ${{ github.event.repository.name }}
+          test_collection_run: ${{ steps.start-fuzzing.outputs.test_collection_run }}
           fuzzing_server_address: ${{ env.FUZZING_SERVER_ADDRESS }}
-          dashboard_address: ${{ env.DASHBOARD_ADDRESS }}
-      - id: report-coverage
-        name: Report Coverage
-        uses: CodeIntelligenceTesting/github-actions/report-coverage@master
-        if: ${{ github.event_name == 'pull_request' && (success() || failure()) }}
+          dashboard_address: ${{ env.WEB_APP_ADDRESS }}
+      - id: save-results
+        name: Save Fuzz Test Results
+        uses: CodeIntelligenceTesting/github-actions/save-results@v3
+        if: ${{ success() || failure() }}
         with:
+          test_collection_run: ${{ steps.start-fuzzing.outputs.test_collection_run }}
           ci_fuzz_api_token: ${{ secrets.CI_FUZZ_API_TOKEN }}
-          project: ${{ env.PROJECT_NAME }}
-          test_collection_run: ${{ steps.start-fuzzing.outputs.test_collection_run_resource_name }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          pull_request_number: ${{ github.event.pull_request.number }}
-          owner: ${{ github.event.repository.owner.login }}
-          repository: ${{ github.event.repository.name }}
-          git_reference: ${{ github.sha }}
           fuzzing_server_address: ${{ env.FUZZING_SERVER_ADDRESS }}
-          dashboard_address: ${{ env.DASHBOARD_ADDRESS }}
-          
+          project: ${{env.PROJECT_ID}}
+          dashboard_address: ${{ env.WEB_APP_ADDRESS }}
+      - id: upload-artifact
+        uses: actions/upload-artifact@v2
+        if: ${{ success() || failure() }}
+        with:
+          name: ci_fuzz_results
+          path: | 
+            findings.json
+            coverage.json
+            web_app_address.txt
